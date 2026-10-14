@@ -184,7 +184,7 @@
     .history-row { display: grid; grid-template-columns: 1fr 34px; gap: 3px; align-items: center; margin: 2px 0; }
     .history-item {
       min-width: 0; border: 0; border-radius: 11px; background: transparent; padding: 10px;
-      text-align: left; display: grid; gap: 3px;
+      text-align: left; display: grid; gap: 3px; touch-action: pan-y; user-select: none; -webkit-touch-callout: none;
     }
     .history-item.active { background: var(--surface); }
     .history-item strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
@@ -196,6 +196,8 @@
       padding: 15px 8px; text-align: left; font-size: 16px;
     }
     .attach-action:last-child { border-bottom: 0; }
+    .rename-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+    .rename-cancel { border: 0; border-radius: 18px; background: var(--surface); padding: 8px 14px; font-weight: 650; }
     .hidden-input { position: fixed; left: -9999px; width: 1px; height: 1px; opacity: 0; }
     @media (min-width: 800px) {
       #app { max-width: 900px; margin: auto; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
@@ -259,7 +261,7 @@
         <option value="high" selected>高</option><option value="xhigh">极高</option>
       </select>
       <p class="note">设置只保存在当前 iPhone 的 Safari/主屏幕网页应用中。网页文件本身不包含你的密钥，也不会把密钥发送给除所填接口之外的服务器。</p>
-      <p class="note">版本 1.2.1 · 历史对话、相机、图片与文件上传</p>
+      <p class="note">版本 1.2.2 · 历史对话重命名、相机、图片与文件上传</p>
       <button class="danger-button" id="clear-key">清除已保存的 API Key</button>
     </section>
   </div>
@@ -271,6 +273,19 @@
       <button class="attach-action" id="take-photo">📷 拍照</button>
       <button class="attach-action" id="choose-photo">🖼️ 从相册选择</button>
       <button class="attach-action" id="choose-file">📎 上传文件</button>
+    </section>
+  </div>
+
+  <div class="overlay" id="rename-overlay" role="dialog" aria-modal="true" aria-label="重命名对话">
+    <section class="sheet">
+      <div class="handle"></div>
+      <div class="sheet-title"><h2>重命名对话</h2></div>
+      <label for="rename-input">对话名称</label>
+      <input class="field" id="rename-input" maxlength="28" autocomplete="off">
+      <div class="rename-actions">
+        <button class="rename-cancel" id="cancel-rename">取消</button>
+        <button class="done" id="save-rename">保存</button>
+      </div>
     </section>
   </div>
 
@@ -519,6 +534,6 @@
     if (!standalone && !localStorage.getItem('agentchat.installTipClosed')) els.installTip.style.display = 'block';
     if (!settings.apiKey) openSettings();
   </script>
-  <script src="app.js?v=1.2.1"></script>
+  <script src="app.js?v=1.2.2"></script>
 </body>
 </html>

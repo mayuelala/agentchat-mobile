@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '1.2.1';
+const APP_VERSION = '1.2.2';
 const SETTINGS_KEY = 'agentchat.settings.v1';
 const LEGACY_MESSAGES_KEY = 'agentchat.messages.v1';
 const CONVERSATIONS_KEY = 'agentchat.conversations.v2';
@@ -42,6 +42,8 @@ const els = {
   error: $('error'),
   settingsOverlay: $('settings-overlay'),
   attachmentOverlay: $('attachment-overlay'),
+  renameOverlay: $('rename-overlay'),
+  renameInput: $('rename-input'),
   baseURL: $('base-url'),
   model: $('model'),
   apiKey: $('api-key'),
@@ -60,6 +62,7 @@ let conversations = loadArray(CONVERSATIONS_KEY);
 let activeConversationId = localStorage.getItem(ACTIVE_CONVERSATION_KEY) || '';
 let messages = [];
 let pendingAttachments = [];
+let renamingConversationId = '';
 let controller = null;
 let busy = false;
 
@@ -298,6 +301,76 @@ function deleteConversation(id) {
   renderAll();
 }
 
+function openRenameDialog(id) {
+  const target = conversations.find(item => item.id === id);
+  if (!target) return;
+  renamingConversationId = id;
+  els.renameInput.value = target.title;
+  els.renameInput.setCustomValidity('');
+  closeHistory();
+  els.renameOverlay.classList.add('visible');
+  requestAnimationFrame(() => { els.renameInput.focus(); els.renameInput.select(); });
+}
+
+function closeRenameDialog() {
+  renamingConversationId = '';
+  els.renameOverlay.classList.remove('visible');
+}
+
+function saveRenamedConversation() {
+  const target = conversations.find(item => item.id === renamingConversationId);
+  if (!target) return closeRenameDialog();
+  const clean = els.renameInput.value.replace(/[「」]/g, '').trim();
+  if (!clean) {
+    els.renameInput.setCustomValidity('对话名称不能为空');
+    els.renameInput.reportValidity();
+    els.renameInput.focus();
+    return;
+  }
+  els.renameInput.setCustomValidity('');
+  target.title = uniqueConversationTitle(clean, target.id);
+  saveState();
+  closeRenameDialog();
+  renderHistory();
+  renderMentionMenu();
+}
+
+function enableLongPressRename(element, conversationId) {
+  let timer = null;
+  let startX = 0;
+  let startY = 0;
+  let longPressed = false;
+  const cancelTimer = () => { if (timer) clearTimeout(timer); timer = null; };
+
+  element.addEventListener('pointerdown', event => {
+    if (event.button !== 0 && event.pointerType !== 'touch') return;
+    startX = event.clientX;
+    startY = event.clientY;
+    longPressed = false;
+    cancelTimer();
+    timer = setTimeout(() => {
+      longPressed = true;
+      navigator.vibrate?.(30);
+      openRenameDialog(conversationId);
+    }, 550);
+  });
+  element.addEventListener('pointermove', event => {
+    if (Math.hypot(event.clientX - startX, event.clientY - startY) > 10) cancelTimer();
+  });
+  element.addEventListener('pointerup', cancelTimer);
+  element.addEventListener('pointercancel', cancelTimer);
+  element.addEventListener('contextmenu', event => event.preventDefault());
+  element.addEventListener('click', event => {
+    if (longPressed) {
+      event.preventDefault();
+      event.stopPropagation();
+      longPressed = false;
+      return;
+    }
+    switchConversation(conversationId);
+  });
+}
+
 function openHistory() {
   renderHistory();
   els.historySidebar.classList.add('visible');
@@ -329,7 +402,7 @@ function renderHistory() {
     const title = document.createElement('strong'); title.textContent = conversation.title;
     const time = document.createElement('small'); time.textContent = relativeTime(conversation.updatedAt);
     item.append(title, time);
-    item.addEventListener('click', () => switchConversation(conversation.id));
+    enableLongPressRename(item, conversation.id);
 
     const mention = document.createElement('button');
     mention.className = 'history-delete'; mention.textContent = '@'; mention.title = '在当前对话中提及';
@@ -342,6 +415,7 @@ function renderHistory() {
 
     const remove = document.createElement('button');
     remove.className = 'history-delete'; remove.textContent = '×'; remove.title = '删除';
+    remove.setAttribute('aria-label', `删除“${conversation.title}”`);
     remove.addEventListener('click', event => { event.stopPropagation(); deleteConversation(conversation.id); });
 
     row.style.gridTemplateColumns = '1fr 32px 32px';
@@ -831,6 +905,16 @@ $('close-attachments').addEventListener('click', closeAttachmentSheet);
 els.attachmentOverlay.addEventListener('click', event => {
   if (event.target === els.attachmentOverlay) closeAttachmentSheet();
 });
+$('cancel-rename').addEventListener('click', closeRenameDialog);
+$('save-rename').addEventListener('click', saveRenamedConversation);
+els.renameOverlay.addEventListener('click', event => {
+  if (event.target === els.renameOverlay) closeRenameDialog();
+});
+els.renameInput.addEventListener('keydown', event => {
+  if (event.key === 'Enter') saveRenamedConversation();
+  if (event.key === 'Escape') closeRenameDialog();
+});
+els.renameInput.addEventListener('input', () => els.renameInput.setCustomValidity(''));
 $('take-photo').addEventListener('click', () => { closeAttachmentSheet(); els.cameraInput.value = ''; els.cameraInput.click(); });
 $('choose-photo').addEventListener('click', () => { closeAttachmentSheet(); els.photoInput.value = ''; els.photoInput.click(); });
 $('choose-file').addEventListener('click', () => { closeAttachmentSheet(); els.fileInput.value = ''; els.fileInput.click(); });
