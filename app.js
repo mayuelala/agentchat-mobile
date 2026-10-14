@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.2.1';
 const SETTINGS_KEY = 'agentchat.settings.v1';
 const LEGACY_MESSAGES_KEY = 'agentchat.messages.v1';
 const CONVERSATIONS_KEY = 'agentchat.conversations.v2';

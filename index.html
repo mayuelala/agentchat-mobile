@@ -136,7 +136,7 @@
     }
     #send:disabled { opacity: .35; }
     #install-tip {
-      display: none; position: fixed; left: 12px; right: 12px; bottom: calc(12px + var(--safe-bottom));
+      display: none; position: fixed; left: 12px; right: 12px; top: calc(58px + var(--safe-top));
       z-index: 20; max-width: 520px; margin: auto; border-radius: 16px; padding: 13px 44px 13px 14px;
       background: #263658; color: white; box-shadow: 0 10px 40px rgba(0,0,0,.26); font-size: 14px; line-height: 1.4;
     }
@@ -259,7 +259,7 @@
         <option value="high" selected>高</option><option value="xhigh">极高</option>
       </select>
       <p class="note">设置只保存在当前 iPhone 的 Safari/主屏幕网页应用中。网页文件本身不包含你的密钥，也不会把密钥发送给除所填接口之外的服务器。</p>
-      <p class="note">版本 1.2.0 · 历史对话、相机、图片与文件上传</p>
+      <p class="note">版本 1.2.1 · 历史对话、相机、图片与文件上传</p>
       <button class="danger-button" id="clear-key">清除已保存的 API Key</button>
     </section>
   </div>
@@ -519,6 +519,6 @@
     if (!standalone && !localStorage.getItem('agentchat.installTipClosed')) els.installTip.style.display = 'block';
     if (!settings.apiKey) openSettings();
   </script>
-  <script src="app.js?v=1.2.0"></script>
+  <script src="app.js?v=1.2.1"></script>
 </body>
 </html>
