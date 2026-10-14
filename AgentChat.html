@@ -174,6 +174,7 @@
         <option value="high" selected>高</option><option value="xhigh">极高</option>
       </select>
       <p class="note">设置只保存在当前 iPhone 的 Safari/主屏幕网页应用中。网页文件本身不包含你的密钥，也不会把密钥发送给除所填接口之外的服务器。</p>
+      <p class="note">版本 1.1.0 · Responses API 对话格式修复</p>
       <button class="danger-button" id="clear-key">清除已保存的 API Key</button>
     </section>
   </div>
@@ -324,20 +325,30 @@
     }
 
     async function callResponses(instructions, inputMessages, signal) {
+      const apiMessages = inputMessages
+        .filter(item => !(item.role === 'assistant' && item.content === welcome))
+        .slice(-20);
       const response = await fetch(`${settings.baseURL}/responses`, {
         method: 'POST', signal,
         headers: { 'Authorization': `Bearer ${settings.apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: settings.model, instructions,
-          input: inputMessages.slice(-20).map(item => ({
+          input: apiMessages.map(item => ({
             role: item.role,
-            content: [{ type: 'input_text', text: item.content }]
+            content: [{ type: item.role === 'assistant' ? 'output_text' : 'input_text', text: item.content }]
           })),
           reasoning: { effort: settings.effort }, stream: false
         })
       });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body?.error?.message || body?.message || `请求失败（HTTP ${response.status}）`);
+      if (!response.ok) {
+        let detail = body?.error?.message || body?.message;
+        if (body?.error?.cause) {
+          try { detail = JSON.parse(body.error.cause)?.error?.message || body.error.cause; }
+          catch { detail = body.error.cause; }
+        }
+        throw new Error(detail || `请求失败（HTTP ${response.status}）`);
+      }
       if (body.error) throw new Error(body.error.message || body.error.code || '接口返回错误');
       const text = body.output_text || (body.output || []).flatMap(item => item.content || [])
         .filter(item => item.type === 'output_text' || item.type === 'text')
