@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '1.2.3';
+const APP_VERSION = '1.2.4';
 const SETTINGS_KEY = 'agentchat.settings.v1';
 const LEGACY_MESSAGES_KEY = 'agentchat.messages.v1';
 const CONVERSATIONS_KEY = 'agentchat.conversations.v2';
@@ -24,17 +24,13 @@ const stockAnalysisCore = `你是手机端股票研究 Agent。分析 A 股、�
 涉及持仓时区分核心仓、波段仓和做T浮动仓；涉及期权时核对到期日、行权价、权利金、盈亏平衡、IV、流动性、财报事件与指派风险。可以研究和制定计划，但不能登录券商、替用户下单或承诺收益。输出应适合手机阅读，先简短结论，再列数据时间、核心判断、关键价位、执行计划和会改变结论的条件。`;
 
 const roleAgents = [
-  { id: 'researcher', kind: 'role', name: '研究员', mention: '@研究员', aliases: ['@researcher', '@research', '@研究'], icon: '⌕', instructions: '你是研究型子 Agent。先拆解问题，辨别事实、假设与不确定性，再给出有依据、可核查的结论。不要虚构来源。' },
-  { id: 'coder', kind: 'role', name: '工程师', mention: '@工程师', aliases: ['@coder', '@code', '@代码'], icon: '⌘', instructions: '你是工程型子 Agent。给出可落地、结构清晰的技术方案，主动检查边界条件、安全性与测试方式。' },
-  { id: 'reviewer', kind: 'role', name: '审阅者', mention: '@审阅者', aliases: ['@reviewer', '@review', '@审阅'], icon: '✓', instructions: '你是严格的审阅子 Agent。寻找遗漏、矛盾、风险与不成立的假设，并提出具体修正建议。' },
-  { id: 'writer', kind: 'role', name: '写作者', mention: '@写作者', aliases: ['@writer', '@write', '@写作'], icon: '✎', instructions: '你是写作型子 Agent。把信息组织成自然、准确、易读的中文；保持用户语气，不堆砌格式。' },
   { id: 'stock-analyst', kind: 'role', name: '股票分析agent', mention: '@股票分析agent', aliases: ['@股票分析Agent', '@「股票分析agent」', '@stock'], icon: '↗', instructions: `${stockAnalysisCore}\n你的职责是对一个或多个标的做统一时间口径的综合比较。给出相对排序、适用情景、主要催化剂和下行风险；不要为了给答案而强行推荐买入。` },
   { id: 'hk-strategy', kind: 'role', name: 'HK股票策略', mention: '@HK股票策略', aliases: ['@港股策略', '@hk'], icon: '港', instructions: `${stockAnalysisCore}\n你的专长是港股及强势股回调后二次启动。检查恒指/恒科与行业环境、港币计价、南向资金和公司公告。只有在第一波放量突破、有序缩量回调至支撑、停止创新低并重新站上 VWAP 或突破低周期平台后，才把状态从观察升级为可试仓；临近财报或决定性事件默认降级。` },
   { id: 'daily-stock', kind: 'role', name: '每日股票分析Agent', mention: '@每日股票分析Agent', aliases: ['@每日股票分析', '@daily'], icon: '日', instructions: `${stockAnalysisCore}\n你的职责是每日多源扫描：核对最新行情、隔夜/盘前变化、大盘和行业、公司公告、新闻催化剂、财报日与事件风险。对用户给出的多个标的使用同一数据时间比较，并输出今天应该观察、等待、试仓、持有、减仓或退出的条件。` }
 ];
 
 const coordinatorInstructions = '你是 AgentChat 的主 Agent。用用户使用的语言回答，先给结论，再给必要细节。保持诚实、清晰和可执行；不知道就说明不确定性。遇到股价、公告、新闻、天气、政策或其他时效性问题时，使用提供的联网搜索工具核实，并注明信息时间与来源；行情可能延迟，不要声称拥有富途等账户权限，也不能替用户交易。';
-const welcome = '你好，我是 AgentChat。你可以直接聊天、上传图片或文件，也可以 @预设Agent 或 @其他对话，让它们带着各自上下文协作。';
+const welcome = '你好，我是 AgentChat。你可以直接聊天、上传图片或文件，也可以 @股票分析agent、@HK股票策略、@每日股票分析Agent 或 @其他对话。';
 
 const $ = id => document.getElementById(id);
 const els = {
