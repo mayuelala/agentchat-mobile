@@ -47,7 +47,7 @@
     header {
       padding: calc(var(--safe-top) + 8px) 12px 8px;
       display: grid;
-      grid-template-columns: 44px 1fr 44px;
+      grid-template-columns: 44px 1fr 88px;
       align-items: center;
       border-bottom: 1px solid var(--line);
       background: color-mix(in srgb, var(--bg) 90%, transparent);
@@ -55,6 +55,7 @@
       z-index: 5;
     }
     header h1 { font-size: 17px; margin: 0; text-align: center; letter-spacing: -.2px; }
+    .header-actions { display: flex; justify-content: flex-end; }
     .icon-button {
       width: 40px; height: 40px; border: 0; border-radius: 50%; background: transparent;
       display: grid; place-items: center; font-size: 23px; cursor: pointer;
@@ -75,6 +76,13 @@
       background: var(--surface); padding: 10px 14px; border-radius: 19px;
       max-width: min(82vw, 560px);
     }
+    .message-attachments { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; max-width: min(82vw, 560px); }
+    .message-attachment {
+      display: flex; align-items: center; gap: 7px; max-width: 250px; padding: 7px 10px;
+      border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-size: 12px;
+    }
+    .message-attachment img { width: 74px; height: 74px; object-fit: cover; border-radius: 9px; }
+    .message-attachment span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #bottom { border-top: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(18px); }
     #status { display: none; padding: 8px 16px 0; font-size: 13px; color: var(--muted); }
     #status.visible { display: flex; gap: 8px; align-items: center; }
@@ -83,11 +91,40 @@
     #error { display: none; margin: 8px 12px 0; padding: 10px 12px; border-radius: 12px; background: rgba(220,60,60,.12); color: var(--danger); font-size: 13px; }
     #agents { display: flex; gap: 7px; overflow-x: auto; padding: 8px 12px 5px; scrollbar-width: none; }
     #agents::-webkit-scrollbar { display: none; }
+    #mention-menu {
+      display: none; max-height: 230px; overflow-y: auto; margin: 6px 12px 2px;
+      border: 1px solid var(--line); border-radius: 14px; background: var(--bg);
+      box-shadow: 0 8px 30px rgba(0,0,0,.16);
+    }
+    #mention-menu.visible { display: block; }
+    .mention-option {
+      width: 100%; border: 0; border-bottom: 1px solid var(--line); background: transparent;
+      padding: 11px 12px; display: flex; gap: 10px; align-items: center; text-align: left;
+    }
+    .mention-option:last-child { border-bottom: 0; }
+    .mention-option small { display: block; color: var(--muted); margin-top: 2px; }
     .agent {
       white-space: nowrap; border: 0; background: var(--surface); padding: 7px 10px;
       border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer;
     }
-    #composer { display: flex; align-items: flex-end; gap: 9px; padding: 5px 11px calc(10px + var(--safe-bottom)); }
+    #pending-attachments { display: none; gap: 8px; overflow-x: auto; padding: 7px 12px 3px; }
+    #pending-attachments.visible { display: flex; }
+    .pending-item { position: relative; flex: 0 0 auto; }
+    .pending-item img { width: 66px; height: 66px; object-fit: cover; border-radius: 12px; border: 1px solid var(--line); }
+    .pending-file {
+      width: 126px; height: 66px; padding: 9px; border-radius: 12px; background: var(--surface);
+      display: flex; align-items: center; gap: 7px; font-size: 12px; overflow: hidden;
+    }
+    .pending-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .remove-attachment {
+      position: absolute; right: -5px; top: -5px; width: 22px; height: 22px; border: 2px solid var(--bg);
+      border-radius: 50%; background: #555b66; color: white; display: grid; place-items: center; padding: 0; font-size: 13px;
+    }
+    #composer { display: flex; align-items: flex-end; gap: 8px; padding: 5px 11px calc(10px + var(--safe-bottom)); }
+    #attach {
+      width: 42px; height: 42px; flex: 0 0 42px; border: 1px solid var(--line); border-radius: 50%;
+      background: var(--surface); font-size: 23px; display: grid; place-items: center; cursor: pointer;
+    }
     #prompt {
       flex: 1; min-height: 43px; max-height: 142px; resize: none; border: 0; outline: 0;
       border-radius: 22px; padding: 11px 14px; background: var(--surface); color: var(--text);
@@ -125,6 +162,41 @@
     }
     .note { color: var(--muted); font-size: 12px; line-height: 1.45; margin: 10px 2px; }
     .danger-button { border: 0; background: transparent; color: var(--danger); padding: 10px 2px; margin-top: 8px; }
+    .history-backdrop {
+      position: fixed; inset: 0; z-index: 38; background: rgba(0,0,0,.32); opacity: 0;
+      pointer-events: none; transition: opacity .2s ease;
+    }
+    .history-backdrop.visible { opacity: 1; pointer-events: auto; }
+    .history-sidebar {
+      position: fixed; z-index: 40; left: 0; top: 0; bottom: 0; width: min(86vw, 340px);
+      background: var(--bg); box-shadow: 10px 0 36px rgba(0,0,0,.2); transform: translateX(-105%);
+      transition: transform .24s ease; padding: calc(var(--safe-top) + 10px) 10px calc(var(--safe-bottom) + 10px);
+      display: grid; grid-template-rows: auto auto 1fr;
+    }
+    .history-sidebar.visible { transform: translateX(0); }
+    .history-title { display: flex; align-items: center; justify-content: space-between; padding: 0 4px 8px; }
+    .history-title h2 { margin: 0; font-size: 20px; }
+    .history-new {
+      width: 100%; border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+      padding: 11px 13px; text-align: left; font-weight: 650; margin-bottom: 9px;
+    }
+    #history-list { overflow-y: auto; }
+    .history-row { display: grid; grid-template-columns: 1fr 34px; gap: 3px; align-items: center; margin: 2px 0; }
+    .history-item {
+      min-width: 0; border: 0; border-radius: 11px; background: transparent; padding: 10px;
+      text-align: left; display: grid; gap: 3px;
+    }
+    .history-item.active { background: var(--surface); }
+    .history-item strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+    .history-item small { color: var(--muted); font-size: 11px; }
+    .history-delete { border: 0; background: transparent; color: var(--muted); width: 32px; height: 32px; border-radius: 50%; }
+    .attach-sheet { padding-bottom: calc(18px + var(--safe-bottom)); }
+    .attach-action {
+      width: 100%; border: 0; border-bottom: 1px solid var(--line); background: transparent;
+      padding: 15px 8px; text-align: left; font-size: 16px;
+    }
+    .attach-action:last-child { border-bottom: 0; }
+    .hidden-input { position: fixed; left: -9999px; width: 1px; height: 1px; opacity: 0; }
     @media (min-width: 800px) {
       #app { max-width: 900px; margin: auto; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
       .overlay { align-items: center; }
@@ -135,9 +207,12 @@
 <body>
   <main id="app">
     <header>
-      <button class="icon-button" id="new-chat" aria-label="新对话">＋</button>
+      <button class="icon-button" id="toggle-history" aria-label="历史对话">☰</button>
       <h1>AgentChat</h1>
-      <button class="icon-button" id="open-settings" aria-label="设置">⚙︎</button>
+      <div class="header-actions">
+        <button class="icon-button" id="new-chat" aria-label="新对话">＋</button>
+        <button class="icon-button" id="open-settings" aria-label="设置">⚙︎</button>
+      </div>
     </header>
 
     <section id="messages" aria-live="polite"></section>
@@ -145,13 +220,23 @@
     <section id="bottom">
       <div id="error"></div>
       <div id="status"><span class="spinner"></span><span id="status-text"></span></div>
+      <div id="mention-menu"></div>
       <div id="agents"></div>
+      <div id="pending-attachments"></div>
       <div id="composer">
+        <button id="attach" aria-label="添加图片或文件">＋</button>
         <textarea id="prompt" rows="1" placeholder="发消息，或点选上方 Agent"></textarea>
         <button id="send" disabled aria-label="发送">↑</button>
       </div>
     </section>
   </main>
+
+  <div class="history-backdrop" id="history-backdrop"></div>
+  <aside class="history-sidebar" id="history-sidebar" aria-label="历史对话">
+    <div class="history-title"><h2>历史对话</h2><button class="icon-button" id="close-history" aria-label="收起历史">×</button></div>
+    <button class="history-new" id="history-new">＋ 新建对话</button>
+    <div id="history-list"></div>
+  </aside>
 
   <aside id="install-tip">
     在 Safari 点“分享” <strong>□↑</strong>，再选“添加到主屏幕”，以后就能像普通 App 一样打开。
@@ -174,12 +259,26 @@
         <option value="high" selected>高</option><option value="xhigh">极高</option>
       </select>
       <p class="note">设置只保存在当前 iPhone 的 Safari/主屏幕网页应用中。网页文件本身不包含你的密钥，也不会把密钥发送给除所填接口之外的服务器。</p>
-      <p class="note">版本 1.1.0 · Responses API 对话格式修复</p>
+      <p class="note">版本 1.2.0 · 历史对话、相机、图片与文件上传</p>
       <button class="danger-button" id="clear-key">清除已保存的 API Key</button>
     </section>
   </div>
 
-  <script>
+  <div class="overlay" id="attachment-overlay" role="dialog" aria-modal="true" aria-label="添加附件">
+    <section class="sheet attach-sheet">
+      <div class="handle"></div>
+      <div class="sheet-title"><h2>添加附件</h2><button class="icon-button" id="close-attachments" aria-label="关闭">×</button></div>
+      <button class="attach-action" id="take-photo">📷 拍照</button>
+      <button class="attach-action" id="choose-photo">🖼️ 从相册选择</button>
+      <button class="attach-action" id="choose-file">📎 上传文件</button>
+    </section>
+  </div>
+
+  <input class="hidden-input" id="camera-input" type="file" accept="image/*" capture="environment">
+  <input class="hidden-input" id="photo-input" type="file" accept="image/*" multiple>
+  <input class="hidden-input" id="file-input" type="file" accept=".pdf,.txt,.md,.csv,.json,.xml,.html,.rtf,.doc,.docx,text/*,application/pdf,application/json" multiple>
+
+  <script type="text/plain" id="legacy-script">
     'use strict';
 
     const defaultSettings = {
@@ -420,5 +519,6 @@
     if (!standalone && !localStorage.getItem('agentchat.installTipClosed')) els.installTip.style.display = 'block';
     if (!settings.apiKey) openSettings();
   </script>
+  <script src="app.js?v=1.2.0"></script>
 </body>
 </html>
