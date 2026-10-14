@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111318" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="AgentChat">
+  <title>AgentChat</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23263658'/%3E%3Cg stroke='white' stroke-width='4'%3E%3Cpath d='M32 32V13M32 32L50 25M32 32L43 50M32 32L21 50M32 32L14 25'/%3E%3C/g%3E%3Cg fill='white'%3E%3Ccircle cx='32' cy='32' r='8'/%3E%3Ccircle cx='32' cy='10' r='5'/%3E%3Ccircle cx='53' cy='24' r='5'/%3E%3Ccircle cx='45' cy='53' r='5'/%3E%3Ccircle cx='19' cy='53' r='5'/%3E%3Ccircle cx='11' cy='24' r='5'/%3E%3C/g%3E%3C/svg%3E">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #ffffff;
+      --surface: #f2f3f5;
+      --surface-2: #e8eaed;
+      --text: #15171b;
+      --muted: #6d727c;
+      --line: rgba(20, 25, 35, .1);
+      --accent: #20232a;
+      --danger: #d43737;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111318;
+        --surface: #202329;
+        --surface-2: #2a2e36;
+        --text: #f2f3f5;
+        --muted: #a7acb5;
+        --line: rgba(255,255,255,.1);
+        --accent: #f1f2f4;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
+      overscroll-behavior: none;
+    }
+    button, input, textarea, select { font: inherit; }
+    button { color: inherit; }
+    #app { height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; }
+    header {
+      padding: calc(var(--safe-top) + 8px) 12px 8px;
+      display: grid;
+      grid-template-columns: 44px 1fr 44px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--bg) 90%, transparent);
+      backdrop-filter: blur(18px);
+      z-index: 5;
+    }
+    header h1 { font-size: 17px; margin: 0; text-align: center; letter-spacing: -.2px; }
+    .icon-button {
+      width: 40px; height: 40px; border: 0; border-radius: 50%; background: transparent;
+      display: grid; place-items: center; font-size: 23px; cursor: pointer;
+    }
+    .icon-button:active { background: var(--surface); }
+    #messages { overflow-y: auto; padding: 20px 14px 24px; scroll-behavior: smooth; }
+    .message { display: flex; gap: 10px; margin: 0 auto 22px; max-width: 760px; }
+    .message.user { justify-content: flex-end; padding-left: 44px; }
+    .avatar {
+      width: 28px; height: 28px; flex: 0 0 28px; border-radius: 50%;
+      background: var(--accent); color: var(--bg); display: grid; place-items: center;
+      font-size: 14px; font-weight: 800;
+    }
+    .content { min-width: 0; max-width: 100%; }
+    .author { color: var(--muted); font-size: 12px; font-weight: 650; margin: 0 0 5px; }
+    .bubble { white-space: pre-wrap; word-break: break-word; line-height: 1.55; font-size: 16px; }
+    .user .bubble {
+      background: var(--surface); padding: 10px 14px; border-radius: 19px;
+      max-width: min(82vw, 560px);
+    }
+    #bottom { border-top: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(18px); }
+    #status { display: none; padding: 8px 16px 0; font-size: 13px; color: var(--muted); }
+    #status.visible { display: flex; gap: 8px; align-items: center; }
+    .spinner { width: 13px; height: 13px; border: 2px solid var(--surface-2); border-top-color: var(--muted); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #error { display: none; margin: 8px 12px 0; padding: 10px 12px; border-radius: 12px; background: rgba(220,60,60,.12); color: var(--danger); font-size: 13px; }
+    #agents { display: flex; gap: 7px; overflow-x: auto; padding: 8px 12px 5px; scrollbar-width: none; }
+    #agents::-webkit-scrollbar { display: none; }
+    .agent {
+      white-space: nowrap; border: 0; background: var(--surface); padding: 7px 10px;
+      border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    #composer { display: flex; align-items: flex-end; gap: 9px; padding: 5px 11px calc(10px + var(--safe-bottom)); }
+    #prompt {
+      flex: 1; min-height: 43px; max-height: 142px; resize: none; border: 0; outline: 0;
+      border-radius: 22px; padding: 11px 14px; background: var(--surface); color: var(--text);
+      line-height: 21px;
+    }
+    #send {
+      width: 42px; height: 42px; flex: 0 0 42px; border: 0; border-radius: 50%;
+      background: var(--accent); color: var(--bg); font-size: 19px; font-weight: 800; cursor: pointer;
+    }
+    #send:disabled { opacity: .35; }
+    #install-tip {
+      display: none; position: fixed; left: 12px; right: 12px; bottom: calc(12px + var(--safe-bottom));
+      z-index: 20; max-width: 520px; margin: auto; border-radius: 16px; padding: 13px 44px 13px 14px;
+      background: #263658; color: white; box-shadow: 0 10px 40px rgba(0,0,0,.26); font-size: 14px; line-height: 1.4;
+    }
+    #install-tip button { position: absolute; right: 7px; top: 7px; color: white; }
+    .overlay {
+      display: none; position: fixed; inset: 0; z-index: 30; background: rgba(0,0,0,.38);
+      align-items: flex-end; justify-content: center;
+    }
+    .overlay.visible { display: flex; }
+    .sheet {
+      width: min(100%, 620px); max-height: 92dvh; overflow-y: auto; background: var(--bg);
+      border-radius: 24px 24px 0 0; padding: 9px 16px calc(22px + var(--safe-bottom));
+      box-shadow: 0 -12px 40px rgba(0,0,0,.15);
+    }
+    .handle { width: 38px; height: 5px; border-radius: 8px; background: var(--surface-2); margin: 0 auto 10px; }
+    .sheet-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .sheet-title h2 { margin: 0; font-size: 20px; }
+    .done { border: 0; border-radius: 18px; background: var(--accent); color: var(--bg); padding: 8px 14px; font-weight: 700; }
+    label { display: block; color: var(--muted); font-size: 13px; margin: 13px 2px 6px; }
+    .field {
+      width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 12px;
+      background: var(--surface); color: var(--text); outline: none;
+    }
+    .note { color: var(--muted); font-size: 12px; line-height: 1.45; margin: 10px 2px; }
+    .danger-button { border: 0; background: transparent; color: var(--danger); padding: 10px 2px; margin-top: 8px; }
+    @media (min-width: 800px) {
+      #app { max-width: 900px; margin: auto; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+      .overlay { align-items: center; }
+      .sheet { border-radius: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <main id="app">
+    <header>
+      <button class="icon-button" id="new-chat" aria-label="新对话">＋</button>
+      <h1>AgentChat</h1>
+      <button class="icon-button" id="open-settings" aria-label="设置">⚙︎</button>
+    </header>
+
+    <section id="messages" aria-live="polite"></section>
+
+    <section id="bottom">
+      <div id="error"></div>
+      <div id="status"><span class="spinner"></span><span id="status-text"></span></div>
+      <div id="agents"></div>
+      <div id="composer">
+        <textarea id="prompt" rows="1" placeholder="发消息，或点选上方 Agent"></textarea>
+        <button id="send" disabled aria-label="发送">↑</button>
+      </div>
+    </section>
+  </main>
+
+  <aside id="install-tip">
+    在 Safari 点“分享” <strong>□↑</strong>，再选“添加到主屏幕”，以后就能像普通 App 一样打开。
+    <button class="icon-button" id="close-tip" aria-label="关闭">×</button>
+  </aside>
+
+  <div class="overlay" id="settings-overlay" role="dialog" aria-modal="true" aria-label="设置">
+    <section class="sheet">
+      <div class="handle"></div>
+      <div class="sheet-title"><h2>设置</h2><button class="done" id="save-settings">保存</button></div>
+      <label for="base-url">Base URL</label>
+      <input class="field" id="base-url" type="url" value="https://modelservice.jdcloud.com/v1" autocapitalize="off" autocomplete="off">
+      <label for="model">模型</label>
+      <input class="field" id="model" value="gpt-5.6-sol" autocapitalize="off" autocomplete="off">
+      <label for="api-key">API Key</label>
+      <input class="field" id="api-key" type="password" placeholder="首次使用时粘贴一次" autocapitalize="off" autocomplete="off">
+      <label for="effort">Reasoning Effort</label>
+      <select class="field" id="effort">
+        <option value="low">低</option><option value="medium">中</option>
+        <option value="high" selected>高</option><option value="xhigh">极高</option>
+      </select>
+      <p class="note">设置只保存在当前 iPhone 的 Safari/主屏幕网页应用中。网页文件本身不包含你的密钥，也不会把密钥发送给除所填接口之外的服务器。</p>
+      <button class="danger-button" id="clear-key">清除已保存的 API Key</button>
+    </section>
+  </div>
+
+  <script>
+    'use strict';
+
+    const defaultSettings = {
+      baseURL: 'https://modelservice.jdcloud.com/v1',
+      model: 'gpt-5.6-sol',
+      effort: 'high',
+      apiKey: ''
+    };
+
+    const agents = [
+      { id: 'researcher', name: '研究员', mention: '@研究员', aliases: ['@researcher','@research','@研究'], icon: '⌕', instructions: '你是研究型子 Agent。先拆解问题，辨别事实、假设与不确定性，再给出有依据、可核查的结论。不要虚构来源。' },
+      { id: 'coder', name: '工程师', mention: '@工程师', aliases: ['@coder','@code','@代码'], icon: '⌘', instructions: '你是工程型子 Agent。给出可落地、结构清晰的技术方案，主动检查边界条件、安全性与测试方式。' },
+      { id: 'reviewer', name: '审阅者', mention: '@审阅者', aliases: ['@reviewer','@review','@审阅'], icon: '✓', instructions: '你是严格的审阅子 Agent。寻找遗漏、矛盾、风险与不成立的假设，并提出具体修正建议。' },
+      { id: 'writer', name: '写作者', mention: '@写作者', aliases: ['@writer','@write','@写作'], icon: '✎', instructions: '你是写作型子 Agent。把信息组织成自然、准确、易读的中文；保持用户语气，不堆砌格式。' }
+    ];
+
+    const coordinatorInstructions = '你是 AgentChat 的主 Agent。用用户使用的语言回答，先给结论，再给必要细节。保持诚实、清晰和可执行；不知道就说明不确定性。不要声称拥有手机或电脑上并未提供的工具权限。';
+    const welcome = '你好，我是 AgentChat。直接聊天，或点选 @研究员、@工程师、@审阅者、@写作者，让多个子 Agent 协作。';
+
+    const $ = id => document.getElementById(id);
+    const els = {
+      messages: $('messages'), prompt: $('prompt'), send: $('send'), agents: $('agents'),
+      status: $('status'), statusText: $('status-text'), error: $('error'),
+      overlay: $('settings-overlay'), baseURL: $('base-url'), model: $('model'),
+      apiKey: $('api-key'), effort: $('effort'), installTip: $('install-tip')
+    };
+
+    let settings = loadJSON('agentchat.settings.v1', defaultSettings);
+    let messages = loadJSON('agentchat.messages.v1', []);
+    let controller = null;
+    let busy = false;
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      messages = [{ role: 'assistant', content: welcome, author: 'AgentChat', time: Date.now() }];
+    }
+
+    function loadJSON(key, fallback) {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(key) || (Array.isArray(fallback) ? '[]' : '{}'));
+        if (Array.isArray(fallback)) return Array.isArray(parsed) ? parsed : fallback;
+        return { ...fallback, ...parsed };
+      } catch { return Array.isArray(fallback) ? [...fallback] : { ...fallback }; }
+    }
+
+    function saveState() {
+      localStorage.setItem('agentchat.settings.v1', JSON.stringify(settings));
+      localStorage.setItem('agentchat.messages.v1', JSON.stringify(messages));
+    }
+
+    function renderMessages() {
+      els.messages.replaceChildren();
+      messages.forEach(message => {
+        const row = document.createElement('article');
+        row.className = `message ${message.role}`;
+        if (message.role === 'assistant') {
+          const avatar = document.createElement('div');
+          avatar.className = 'avatar'; avatar.textContent = '✦';
+          row.appendChild(avatar);
+        }
+        const content = document.createElement('div'); content.className = 'content';
+        if (message.author) {
+          const author = document.createElement('div'); author.className = 'author'; author.textContent = message.author;
+          content.appendChild(author);
+        }
+        const bubble = document.createElement('div'); bubble.className = 'bubble'; bubble.textContent = message.content;
+        content.appendChild(bubble); row.appendChild(content); els.messages.appendChild(row);
+      });
+      requestAnimationFrame(() => { els.messages.scrollTop = els.messages.scrollHeight; });
+    }
+
+    function renderAgents() {
+      agents.forEach(agent => {
+        const button = document.createElement('button'); button.className = 'agent';
+        button.textContent = `${agent.icon} ${agent.name}`;
+        button.addEventListener('click', () => {
+          if (els.prompt.value && !els.prompt.value.endsWith(' ')) els.prompt.value += ' ';
+          els.prompt.value += `${agent.mention} `; resizePrompt(); syncSend(); els.prompt.focus();
+        });
+        els.agents.appendChild(button);
+      });
+    }
+
+    function resizePrompt() {
+      els.prompt.style.height = 'auto';
+      els.prompt.style.height = `${Math.min(142, els.prompt.scrollHeight)}px`;
+    }
+
+    function syncSend() {
+      els.send.disabled = !busy && !els.prompt.value.trim();
+      els.send.textContent = busy ? '■' : '↑';
+      els.send.setAttribute('aria-label', busy ? '停止' : '发送');
+      els.send.style.background = busy ? '#d43737' : '';
+    }
+
+    function showStatus(text) {
+      els.statusText.textContent = text;
+      els.status.classList.toggle('visible', Boolean(text));
+    }
+
+    function showError(text = '') {
+      els.error.textContent = text;
+      els.error.style.display = text ? 'block' : 'none';
+    }
+
+    function openSettings() {
+      els.baseURL.value = settings.baseURL;
+      els.model.value = settings.model;
+      els.apiKey.value = settings.apiKey;
+      els.effort.value = settings.effort;
+      els.overlay.classList.add('visible');
+    }
+
+    function saveSettings() {
+      const next = {
+        baseURL: els.baseURL.value.trim().replace(/\/+$/, ''),
+        model: els.model.value.trim(), apiKey: els.apiKey.value.trim(), effort: els.effort.value
+      };
+      if (!next.baseURL.startsWith('https://')) return alert('Base URL 必须使用 HTTPS');
+      if (!next.model || !next.apiKey) return alert('模型和 API Key 不能为空');
+      settings = next; saveState(); showError(); els.overlay.classList.remove('visible');
+    }
+
+    function mentionedAgents(prompt) {
+      const lower = prompt.toLocaleLowerCase();
+      return agents.filter(agent => [agent.mention, ...agent.aliases].some(value => lower.includes(value.toLocaleLowerCase())));
+    }
+
+    async function callResponses(instructions, inputMessages, signal) {
+      const response = await fetch(`${settings.baseURL}/responses`, {
+        method: 'POST', signal,
+        headers: { 'Authorization': `Bearer ${settings.apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: settings.model, instructions,
+          input: inputMessages.slice(-20).map(item => ({
+            role: item.role,
+            content: [{ type: 'input_text', text: item.content }]
+          })),
+          reasoning: { effort: settings.effort }, stream: false
+        })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body?.error?.message || body?.message || `请求失败（HTTP ${response.status}）`);
+      if (body.error) throw new Error(body.error.message || body.error.code || '接口返回错误');
+      const text = body.output_text || (body.output || []).flatMap(item => item.content || [])
+        .filter(item => item.type === 'output_text' || item.type === 'text')
+        .map(item => item.text || '').join('\n');
+      if (!text.trim()) throw new Error('模型没有返回文本内容');
+      return text;
+    }
+
+    async function answer(prompt, selected, signal) {
+      if (selected.length === 0) return callResponses(coordinatorInstructions, messages, signal);
+
+      const context = messages.slice(-10).map(item => `${item.role === 'user' ? '用户' : '助手'}：${item.content}`).join('\n');
+      const reports = await Promise.all(selected.map(async agent => ({
+        agent,
+        content: await callResponses(agent.instructions, [{ role: 'user', content: `对话上下文：\n${context}\n\n本轮任务：\n${prompt}` }], signal)
+      })));
+      const reportText = reports.map(item => `### ${item.agent.name}\n${item.content}`).join('\n\n');
+      const synthesis = `用户原始请求：\n${prompt}\n\n以下是被点名子 Agent 的独立报告：\n${reportText}\n\n请直接给用户一份统一答案。消除重复，明确分歧，不要假装执行了报告中未实际完成的操作。`;
+      return callResponses(coordinatorInstructions, [{ role: 'user', content: synthesis }], signal);
+    }
+
+    async function send() {
+      if (busy) { controller?.abort(); return; }
+      const prompt = els.prompt.value.trim();
+      if (!prompt) return;
+      if (!settings.apiKey) { openSettings(); showError('请先粘贴 API Key'); return; }
+
+      const selected = mentionedAgents(prompt);
+      messages.push({ role: 'user', content: prompt, time: Date.now() });
+      els.prompt.value = ''; resizePrompt(); renderMessages(); saveState();
+      busy = true; controller = new AbortController(); syncSend(); showError();
+      showStatus(selected.length ? `${selected.map(item => item.name).join('、')}正在协作…` : '正在思考…');
+
+      try {
+        const content = await answer(prompt, selected, controller.signal);
+        messages.push({ role: 'assistant', content, author: 'AgentChat', time: Date.now() });
+        saveState(); renderMessages();
+      } catch (error) {
+        if (error.name !== 'AbortError') showError(error.message || String(error));
+      } finally {
+        busy = false; controller = null; showStatus(); syncSend();
+      }
+    }
+
+    $('new-chat').addEventListener('click', () => {
+      if (busy) controller?.abort();
+      messages = [{ role: 'assistant', content: welcome, author: 'AgentChat', time: Date.now() }];
+      saveState(); renderMessages(); showError();
+    });
+    $('open-settings').addEventListener('click', openSettings);
+    $('save-settings').addEventListener('click', saveSettings);
+    $('clear-key').addEventListener('click', () => { settings.apiKey = ''; els.apiKey.value = ''; saveState(); });
+    els.overlay.addEventListener('click', event => { if (event.target === els.overlay && settings.apiKey) els.overlay.classList.remove('visible'); });
+    els.prompt.addEventListener('input', () => { resizePrompt(); syncSend(); });
+    els.prompt.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); send(); }
+    });
+    els.send.addEventListener('click', send);
+    $('close-tip').addEventListener('click', () => { els.installTip.style.display = 'none'; localStorage.setItem('agentchat.installTipClosed', '1'); });
+
+    renderAgents(); renderMessages(); syncSend();
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+    if (!standalone && !localStorage.getItem('agentchat.installTipClosed')) els.installTip.style.display = 'block';
+    if (!settings.apiKey) openSettings();
+  </script>
+</body>
+</html>
