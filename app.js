@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = '1.2.2';
+const APP_VERSION = '1.2.3';
 const SETTINGS_KEY = 'agentchat.settings.v1';
 const LEGACY_MESSAGES_KEY = 'agentchat.messages.v1';
 const CONVERSATIONS_KEY = 'agentchat.conversations.v2';
@@ -18,14 +18,22 @@ const defaultSettings = {
   apiKey: ''
 };
 
+const stockAnalysisCore = `你是手机端股票研究 Agent。分析 A 股、港股、美股及 ETF 时必须先使用联网搜索核对最新可用数据，不得要求用户先上传行情文件。先确认代码、交易所和币种；写明数据时间、时区、交易阶段，以及实时、延迟、盘前、盘后或上一收盘，并给出可点击来源。不同来源冲突时说明差异，无法验证的内容标为未知，不得把旧数据冒充实时行情。
+区分已验证事实、计算结果、分析判断和未知项。综合检查大盘与行业、相对强弱、EMA10/20、SMA50/200、ATR、成交量、前高前低、估值、增长、现金流、负债、稀释、财报日期、公司公告和重大催化剂。支撑是区域而非保证有效的单点。
+回答“能买吗”时先给结论状态：不交易、观察、等待触发、可小仓试单、持仓管理或结构失效；再给关键支撑区、触发条件、失效/止损位、第一阻力和条件式执行计划。不要因跌到支撑就建议抄底，不追涨，不在亏损扩大时加仓。默认单笔风险 0.25%–0.5%，单股名义仓位不超过账户 20%，但只有用户给出账户和持仓数据后才能计算具体股数。
+涉及持仓时区分核心仓、波段仓和做T浮动仓；涉及期权时核对到期日、行权价、权利金、盈亏平衡、IV、流动性、财报事件与指派风险。可以研究和制定计划，但不能登录券商、替用户下单或承诺收益。输出应适合手机阅读，先简短结论，再列数据时间、核心判断、关键价位、执行计划和会改变结论的条件。`;
+
 const roleAgents = [
   { id: 'researcher', kind: 'role', name: '研究员', mention: '@研究员', aliases: ['@researcher', '@research', '@研究'], icon: '⌕', instructions: '你是研究型子 Agent。先拆解问题，辨别事实、假设与不确定性，再给出有依据、可核查的结论。不要虚构来源。' },
   { id: 'coder', kind: 'role', name: '工程师', mention: '@工程师', aliases: ['@coder', '@code', '@代码'], icon: '⌘', instructions: '你是工程型子 Agent。给出可落地、结构清晰的技术方案，主动检查边界条件、安全性与测试方式。' },
   { id: 'reviewer', kind: 'role', name: '审阅者', mention: '@审阅者', aliases: ['@reviewer', '@review', '@审阅'], icon: '✓', instructions: '你是严格的审阅子 Agent。寻找遗漏、矛盾、风险与不成立的假设，并提出具体修正建议。' },
-  { id: 'writer', kind: 'role', name: '写作者', mention: '@写作者', aliases: ['@writer', '@write', '@写作'], icon: '✎', instructions: '你是写作型子 Agent。把信息组织成自然、准确、易读的中文；保持用户语气，不堆砌格式。' }
+  { id: 'writer', kind: 'role', name: '写作者', mention: '@写作者', aliases: ['@writer', '@write', '@写作'], icon: '✎', instructions: '你是写作型子 Agent。把信息组织成自然、准确、易读的中文；保持用户语气，不堆砌格式。' },
+  { id: 'stock-analyst', kind: 'role', name: '股票分析agent', mention: '@股票分析agent', aliases: ['@股票分析Agent', '@「股票分析agent」', '@stock'], icon: '↗', instructions: `${stockAnalysisCore}\n你的职责是对一个或多个标的做统一时间口径的综合比较。给出相对排序、适用情景、主要催化剂和下行风险；不要为了给答案而强行推荐买入。` },
+  { id: 'hk-strategy', kind: 'role', name: 'HK股票策略', mention: '@HK股票策略', aliases: ['@港股策略', '@hk'], icon: '港', instructions: `${stockAnalysisCore}\n你的专长是港股及强势股回调后二次启动。检查恒指/恒科与行业环境、港币计价、南向资金和公司公告。只有在第一波放量突破、有序缩量回调至支撑、停止创新低并重新站上 VWAP 或突破低周期平台后，才把状态从观察升级为可试仓；临近财报或决定性事件默认降级。` },
+  { id: 'daily-stock', kind: 'role', name: '每日股票分析Agent', mention: '@每日股票分析Agent', aliases: ['@每日股票分析', '@daily'], icon: '日', instructions: `${stockAnalysisCore}\n你的职责是每日多源扫描：核对最新行情、隔夜/盘前变化、大盘和行业、公司公告、新闻催化剂、财报日与事件风险。对用户给出的多个标的使用同一数据时间比较，并输出今天应该观察、等待、试仓、持有、减仓或退出的条件。` }
 ];
 
-const coordinatorInstructions = '你是 AgentChat 的主 Agent。用用户使用的语言回答，先给结论，再给必要细节。保持诚实、清晰和可执行；不知道就说明不确定性。不要声称拥有手机或电脑上并未提供的工具权限。';
+const coordinatorInstructions = '你是 AgentChat 的主 Agent。用用户使用的语言回答，先给结论，再给必要细节。保持诚实、清晰和可执行；不知道就说明不确定性。遇到股价、公告、新闻、天气、政策或其他时效性问题时，使用提供的联网搜索工具核实，并注明信息时间与来源；行情可能延迟，不要声称拥有富途等账户权限，也不能替用户交易。';
 const welcome = '你好，我是 AgentChat。你可以直接聊天、上传图片或文件，也可以 @预设Agent 或 @其他对话，让它们带着各自上下文协作。';
 
 const $ = id => document.getElementById(id);
@@ -221,7 +229,7 @@ function uniqueConversationTitle(base, exceptId = '') {
 function titleFromPrompt(prompt, attachments = []) {
   const withoutMentions = prompt
     .replace(/@「[^」]+」/g, '')
-    .replace(/@(研究员|工程师|审阅者|写作者|researcher|research|coder|code|reviewer|review|writer|write|研究|代码|审阅|写作)/gi, '')
+    .replace(/@(股票分析agent|HK股票策略|每日股票分析Agent|港股策略|每日股票分析|研究员|工程师|审阅者|写作者|researcher|research|coder|code|reviewer|review|writer|write|stock|daily|hk|研究|代码|审阅|写作)/gi, '')
     .trim();
   if (withoutMentions) return withoutMentions.replace(/\s+/g, ' ').slice(0, 28);
   return attachments[0]?.name?.slice(0, 28) || '附件对话';
@@ -440,7 +448,7 @@ function renderMessages() {
       const author = document.createElement('div'); author.className = 'author'; author.textContent = message.author;
       content.appendChild(author);
     }
-    const bubble = document.createElement('div'); bubble.className = 'bubble'; bubble.textContent = message.content;
+    const bubble = document.createElement('div'); bubble.className = 'bubble'; renderTextWithLinks(bubble, message.content);
     content.appendChild(bubble);
 
     if (message.attachments?.length) {
@@ -588,6 +596,40 @@ function showStatus(text = '') {
 function showError(text = '') {
   els.error.textContent = text;
   els.error.style.display = text ? 'block' : 'none';
+}
+
+function userFacingError(error) {
+  const message = error?.message || String(error);
+  if (/load failed|failed to fetch|networkerror|network request failed/i.test(message)) {
+    return '网络连接失败，模型服务器没有响应。请切换 Wi‑Fi/蜂窝网络后重试；如果使用主屏幕版本，请先在 Safari 打开最新版。';
+  }
+  return message;
+}
+
+function renderTextWithLinks(element, text) {
+  const pattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<]+)/g;
+  let cursor = 0;
+  for (const match of text.matchAll(pattern)) {
+    if (match.index > cursor) element.append(document.createTextNode(text.slice(cursor, match.index)));
+    let url = match[2] || match[3];
+    let label = match[1] || url;
+    let trailing = '';
+    if (!match[2]) {
+      const cleaned = url.replace(/[),.;!?，。；！？）]+$/, '');
+      trailing = url.slice(cleaned.length);
+      url = cleaned;
+      label = cleaned;
+    }
+    const link = document.createElement('a');
+    link.href = url;
+    link.textContent = label;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    element.append(link);
+    if (trailing) element.append(document.createTextNode(trailing));
+    cursor = match.index + match[0].length;
+  }
+  if (cursor < text.length) element.append(document.createTextNode(text.slice(cursor)));
 }
 
 function openSettings() {
@@ -763,6 +805,7 @@ async function callResponses(instructions, inputMessages, signal) {
       model: settings.model,
       instructions,
       input: apiMessages.map(item => ({ role: item.role, content: apiContentForMessage(item) })),
+      tools: [{ type: 'web_search' }],
       reasoning: { effort: settings.effort },
       stream: false
     })
@@ -849,6 +892,7 @@ async function send() {
   pendingAttachments = [];
   els.prompt.value = '';
   resizePrompt();
+  renderMentionMenu();
   renderPendingAttachments();
   renderMessages();
   renderHistory();
@@ -869,7 +913,7 @@ async function send() {
     renderMessages();
     renderHistory();
   } catch (error) {
-    if (error.name !== 'AbortError') showError(error.message || String(error));
+    if (error.name !== 'AbortError') showError(userFacingError(error));
   } finally {
     busy = false;
     controller = null;
