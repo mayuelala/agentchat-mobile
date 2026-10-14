@@ -228,6 +228,22 @@
       localStorage.setItem('agentchat.messages.v1', JSON.stringify(messages));
     }
 
+    function keyLooksComplete(value) {
+      return value.startsWith('pk-') && value.length >= 20 && !value.includes('…') && !value.includes('...');
+    }
+
+    function importKeyFromFragment() {
+      try {
+        const params = new URLSearchParams(location.hash.slice(1));
+        const imported = (params.get('api_key') || '').trim();
+        if (!keyLooksComplete(imported)) return false;
+        settings.apiKey = imported;
+        saveState();
+        history.replaceState(null, '', `${location.pathname}${location.search}`);
+        return true;
+      } catch { return false; }
+    }
+
     function renderMessages() {
       els.messages.replaceChildren();
       messages.forEach(message => {
@@ -298,6 +314,7 @@
       };
       if (!next.baseURL.startsWith('https://')) return alert('Base URL 必须使用 HTTPS');
       if (!next.model || !next.apiKey) return alert('模型和 API Key 不能为空');
+      if (!keyLooksComplete(next.apiKey)) return alert('API Key 不完整。请勿填写 pk-e…6ccf 这样的脱敏值；请粘贴完整 Key。');
       settings = next; saveState(); showError(); els.overlay.classList.remove('visible');
     }
 
@@ -347,6 +364,7 @@
       const prompt = els.prompt.value.trim();
       if (!prompt) return;
       if (!settings.apiKey) { openSettings(); showError('请先粘贴 API Key'); return; }
+      if (!keyLooksComplete(settings.apiKey)) { openSettings(); alert('当前 API Key 不完整，请重新导入完整 Key。'); return; }
 
       const selected = mentionedAgents(prompt);
       messages.push({ role: 'user', content: prompt, time: Date.now() });
@@ -381,6 +399,11 @@
     els.send.addEventListener('click', send);
     $('close-tip').addEventListener('click', () => { els.installTip.style.display = 'none'; localStorage.setItem('agentchat.installTipClosed', '1'); });
 
+    const keyImported = importKeyFromFragment();
+    if (keyImported) {
+      messages.push({ role: 'assistant', content: '完整 API Key 已从二维码导入，并已从地址栏清除。现在可以直接聊天。', author: 'AgentChat', time: Date.now() });
+      saveState();
+    }
     renderAgents(); renderMessages(); syncSend();
     const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
     if (!standalone && !localStorage.getItem('agentchat.installTipClosed')) els.installTip.style.display = 'block';
